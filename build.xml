@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<project name="skeleton_build" default="compile" 
+  xmlns:ivy="antlib:org.apache.ivy.ant">
+  <description>
+    A basic, skeleton build file to be flushed out on a per project basis
+    Created by Jason Porter
+  </description>
+
+  <!-- 
+        Build properties 
+
+        These basically are properties that are needed to actually build the 
+        project, such as directory locations 
+  -->
+  <property file="local.build.properties" />
+  <property file="build.properties" /> 
+
+  <!-- 
+        Project Properties 
+
+        These properties are specific to a project, like usernames, passewords,
+        connection strings, etc
+  -->
+  <property file="local.project.properties" />
+  <property file="project.properties" />
+
+  <!--
+        Build Lifecycle Tasks
+
+        init 
+          desc: setup for the build: taskdef, macrodef, groovy, conditions, etc
+          lifecycle dependencies: none
+          non-lifecycle dependencies: -retrieveIvy, -retrieveGroovy
+        clean 
+          desc: clean-up from a previous build
+          lifecycle dependencies: none
+          non-lifecycle dependencies: none
+        processResources
+          desc: copy resources, performing any needed replacements / filters
+          lifecycle dependencies: none
+          non-lifecycle dependencies: none
+        processTestResources
+          desc: same as processResources, but for test resources
+          lifecycle dependencies: none
+          non-lifecycle dependencies: none
+        libs
+          desc: fetch all needed libraries using Ivy
+          lifecycle dependencies: init
+          non-lifecycle dependencies: none
+        compile
+          desc: compile groovy / Java code
+          lifecycle dependencies: libs, processResources
+          non-lifecycle dependencies: none
+        compileTests
+          desc: compile groovy / Java test code
+          lifecycle dependencies: compile
+          non-lifecycle dependencies: none
+        test
+          desc: run tests
+          lifecycle dependencies: compileTests, processTestResources
+          non-lifecycle dependencies: none
+        test-coverage
+          desc: Runs tests, then provides coverage
+          lifecycle dependencies: test
+          non-lifecylce depedencies: -instrument
+        javadoc
+          desc: generate Javadoc for the project
+          lifecycle dependencies: init 
+          non-lifecycle dependencies: none 
+        jar/war/ear
+          desc: create a Java archive
+          lifecycle dependencies: processResources, test
+          non-lifecycle dependencies: none 
+        dists
+          desc: create a distributable file (jar, war, ear, etc)
+          lifecycle dependencies: zip type tasks (jar, war, ear, etc) 
+          non-lifecycle dependencies: none 
+        projectReport
+          desc: create all reports for the project
+          lifecycle dependencies: init
+          non-lifecycle dependencies: none
+  -->
+
+  <!--
+        Conditionals needed pre-init
+  --> 
+  <condition property="build.lib.retrieved" value="true">
+    <available file="${build.lib.dir}" type="dir" />
+  </condition>
+
+  <target name="-retrieveGroovy" unless="build.lib.retrieved"> 
+    <mkdir dir="${build.lib.dir}" /> 
+    <get src="http://dist.groovy.codehaus.org/distributions/groovy-binary-${groovy.version}.zip"
+      dest="${build.lib.dir}/groovy-binary-${groovy.version}.zip" verbose="true" />
+    <unzip src="${build.lib.dir}/groovy-binary-${groovy.version}.zip" dest="${build.lib.dir}" />
+  </target>
+
+  <target name="-retrieveIvy" unless="build.lib.retrieved"> 
+    <!-- Retrieve Ivy --> 
+    <get src="http://www.apache.org/dist/ant/ivy/${ivy.version}/${ivy.file}"
+      dest="${build.lib.dir}/${ivy.file}" verbose="true" />
+    <untar src="${build.lib.dir}/${ivy.file}" dest="${build.lib.dir}/" compression="gzip" />
+
+    <delete includeEmptyDirs="true">
+      <fileset dir="${build.lib.dir}">
+        <exclude name="**/ivy-${ivy.version}.jar" />
+        <exclude name="**/groovy-all-${groovy.version}.jar" />
+      </fileset>
+    </delete> 
+  </target>
+
+  <target name="init" description="setup for the build: taskdef, macrodef, groovy, conditions, etc"
+    depends="-retrieveGroovy, -retrieveIvy">
+    <path id="build.lib.classpath">
+      <fileset dir="${build.lib.dir}">
+        <include name="**/*.jar" />
+      </fileset>
+    </path>
+
+    <!-- Load up the task defs -->
+    <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="build.lib.classpath"/>
+    <taskdef name="groovy" classname="org.codehaus.groovy.ant.Groovy" classpathref="build.lib.classpath"/>
+    <taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc" classpathref="build.lib.classpath"/>
+    <taskdef name="groovydoc" classname="org.codehaus.groovy.ant.Groovydoc" classpathref="build.lib.classpath"/>
+  </target> 
+
+  <target name="clean" description="clean-up from a previous build">
+    <delete dir="${build.dir}" />
+  </target>
+
+  <target name="processResources" description="copy resources, performing any needed replacements / filters">
+    <mkdir dir="${classes.dir}" /> 
+    <copy todir="${classes.dir}">
+      <filterchain>
+        <expandproperties />
+      </filterchain>
+      <fileset dir="${resource.dirs}" />
+    </copy>
+  </target>
+
+  <target name="processTestResources" description="copy test resources, performing any needed replacements / filters">
+    <mkdir dir="${test.classes.dir}" /> 
+    <copy todir="${test.classes.dir}">
+      <filterchain>
+        <expandproperties />
+      </filterchain>
+      <fileset dir="${resource.dirs}" />
+    </copy>
+  </target>
+
+  <target name="libs" description="fetch all needed libraries using Ivy" depends="init">
+    <!-- TODO: retrieve with ivy -->
+  </target>
+
+  <target name="compile" description="compile groovy / Java code" depends="libs, processResources">
+    <groovyc srcdir="${src.dirs}" destdir="${classes.dir}">
+      <classpath>
+      </classpath>
+      <javac source="${javac.source}" target="${javac.target}" debug="${javac.debug}" />
+    </groovyc>
+  </target>
+
+  <target name="compileTests" description="compile groovy / Java code" depends="compile">
+    <groovyc srcdir="${test.src.dirs}" destdir="${test.classes.dir}">
+      <classpath>
+      </classpath>
+      <javac source="${javac.source}" target="${javac.target}" debug="${javac.debug}" />
+    </groovyc>
+  </target>
+
+  <target name="test" description="run tests" depends="compileTests, processTestResources">
+    
+  </target>
+
+  <target name="-instrument" depends="compile">
+    
+  </target>
+
+  <target name="test-coverage" description="Runs tests, then provides coverage" depends="-instrument, test" />
+
+  <target name="javadoc" description="generate Javadoc for the project" depends="init"> 
+    <mkdir dir="${javadoc.dir}" />
+    <mkdir dir="${groovydoc.dir}" />
+    <javadoc destdir="${javadoc.dir}" access="${javadoc.access}" 
+      source="${ant.build.javac.sourc}">
+      <fileset dir="${java.src.dirs}" includes="**/*.java" />
+    </javadoc>
+    <groovydoc sourcepath="${groovy.src.dirs}" destdir="${groovydoc.dir}" private="${groovydoc.private}" />
+  </target>
+
+  <target name="dists" description="create a distributable file" depends="" />
+</project>
