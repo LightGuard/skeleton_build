@@ -46,7 +46,7 @@
         libs
           desc: fetch all needed libraries using Ivy
           lifecycle dependencies: init
-          non-lifecycle dependencies: none
+          non-lifecycle dependencies: -retrieveLibs
         compile
           desc: compile groovy / Java code
           lifecycle dependencies: libs, processResources
@@ -78,14 +78,15 @@
         projectReport
           desc: create all reports for the project
           lifecycle dependencies: init
-          non-lifecycle dependencies: none
+          non-lifecycle dependencies: -coverageReport,
   -->
 
-  <!--
-        Conditionals needed pre-init
-  --> 
+  <!-- Conditionals needed pre-init --> 
   <condition property="build.lib.retrieved" value="true">
-    <available file="${build.lib.dir}" type="dir" />
+    <and>
+      <available file="${build.lib.dir}/apache-ivy-${ivy.version}/ivy-${ivy.version}.jar" />
+      <available file="${build.lib.dir}/groovy-${groovy.version}/embeddable/groovy-all-${groovy.version}.jar" />
+    </and>
   </condition>
 
   <target name="-retrieveGroovy" unless="build.lib.retrieved"> 
@@ -111,11 +112,21 @@
 
   <target name="init" description="setup for the build: taskdef, macrodef, groovy, conditions, etc"
     depends="-retrieveGroovy, -retrieveIvy">
+    <mkdir dir="${lib.dir}" />
     <path id="build.lib.classpath">
       <fileset dir="${build.lib.dir}">
-        <include name="**/*.jar" />
+        <include name="**/ivy-${ivy.version}.jar" />
+        <include name="**/groovy-all-${groovy.version}.jar" />
       </fileset>
     </path>
+
+    <condition property="libs.retrieved" value="true">
+      <and>
+        <available file="${lib.dir}/compile" />
+        <available file="${lib.dir}/runtime" />
+        <available file="${lib.dir}/test" />
+      </and>
+    </condition>
 
     <!-- Load up the task defs -->
     <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="build.lib.classpath"/>
@@ -148,33 +159,112 @@
     </copy>
   </target>
 
-  <target name="libs" description="fetch all needed libraries using Ivy" depends="init">
-    <!-- TODO: retrieve with ivy -->
+  <target name="-retrieveLibs" unless="libs.retrieved">
+    <ivy:settings file="${basedir}/ivysettings.xml" />
+    <ivy:resolve file="${basedir}/ivy.xml" conf="*" log="download-only" />
+    <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact]-[revision].[ext]" conf="compile"/> 
+    <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact]-[revision].[ext]" conf="runtime"/> 
+    <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact]-[revision]-[type]s.[ext]" conf="sources"/> 
+    <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact]-[revision].[ext]" conf="test"/> 
+  </target>
+
+  <target name="libs" description="fetch all needed libraries using Ivy" depends="init, -retrieveLibs">
+    <path id="compile.classpath">
+      <fileset dir="${lib.dir}/compile">
+        <include name="**/*.jar" />
+      </fileset>
+    </path>
+    <path id="runtime.classpath">
+      <fileset dir="${lib.dir}/runtime">
+        <include name="**/*.jar" />
+      </fileset>
+    </path>
+    <path id="test.classpath">
+      <fileset dir="${lib.dir}/test">
+        <include name="**/*.jar" />
+      </fileset>
+      <path refid="runtime.classpath" />
+      <path refid="compile.classpath" />
+    </path>
   </target>
 
   <target name="compile" description="compile groovy / Java code" depends="libs, processResources">
     <groovyc srcdir="${src.dirs}" destdir="${classes.dir}">
       <classpath>
+        <path refid="compile.classpath" />
       </classpath>
       <javac source="${javac.source}" target="${javac.target}" debug="${javac.debug}" />
     </groovyc>
+
+    <!-- Copy over anything else in the src directories like properties, xml, etc -->
+    <copy todir="${classes.dir}">
+      <fileset dir="${java.src.dir}" excludes="**/*.java" />
+      <fileset dir="${groovy.src.dir}" excludes="**/*.groovy" />
+    </copy>
   </target>
 
   <target name="compileTests" description="compile groovy / Java code" depends="compile">
     <mkdir dir="${test.classes.dir}" />
+    <taskdef resource="testngtasks" classpathref="test.classpath" />
+
     <groovyc srcdir="${test.src.dirs}" destdir="${test.classes.dir}">
       <classpath>
+        <path refid="test.classpath" />
       </classpath>
       <javac source="${javac.source}" target="${javac.target}" debug="${javac.debug}" />
     </groovyc>
+
+    <!-- Copy over anything else in the src directories like properties, xml, etc -->
+    <copy todir="${classes.dir}">
+      <fileset dir="${java.src.dir}" excludes="**/*.java" />
+      <fileset dir="${groovy.src.dir}" excludes="**/*.groovy" />
+    </copy>
   </target>
 
-  <target name="test" description="run tests" depends="compileTests, processTestResources">
-    
+  <target name="test" description="run tests" depends="compileTests, processTestResources"> 
+    <groovy>
+      ant.sequential {
+        testng(suitename: properties['ant.project.name'], outputdir: properties['test.output.dir'],  haltonfailure: true) {
+          // Maybe use the XML file, not sure yet
+          classfileset dir: properties['test.classes.dir'], includes: '**/*.class'
+          if (properties['running.coverage']) 
+            sysproperty key: 'net.sourceforge.cobertura.datafile', file: properties['instrument.classes.dir'] + '/cobertura.ser'
+
+          classpath { 
+            if (properties['running.coverage'])
+              pathelement location: properties["instrument.classes.dir"]
+
+            path refid: 'test.classpath'
+            pathelement location: properties['test.classes.dir']
+            pathelement location: properties['webapp.dir'] + '/WEB-INF'
+            pathelement location: properties['webapp.dir'] + '/WEB-INF/classes'
+
+            pathelement location: properties["classes.dir"] 
+          } 
+        }
+      }
+    </groovy> 
   </target>
 
   <target name="-instrument" depends="compile">
-    
+    <mkdir dir="${instrument.classes.dir}" />
+    <delete file="${instrument.classes.dir}/cobertura.ser" />
+
+    <taskdef resource="tasks.properties" classpathref="test.classpath" /> 
+
+    <cobertura-instrument todir="${instrument.classes.dir}" datafile="${instrument.classes.dir}/cobertura.ser">
+      <fileset dir="${classes.dir}">
+        <include name="**/*.*" />
+      </fileset>
+    </cobertura-instrument>
+
+    <!-- Adding the marker for Seam to pick up these classes for testing -->
+    <touch file="${instrument.classes.dir}/seam.properties" /> 
+
+    <!-- I think we need to delete the other one so Seam doesn't pick them up too -->
+    <delete file="${classes.dir}/seam.properties" /> 
+
+    <property name="running.coverage" value="true" /> 
   </target>
 
   <target name="test-coverage" description="Runs tests, then provides coverage" depends="-instrument, test" />
@@ -184,10 +274,19 @@
     <mkdir dir="${groovydoc.dir}" />
     <javadoc destdir="${javadoc.dir}" access="${javadoc.access}" 
       source="${ant.build.javac.sourc}">
-      <fileset dir="${java.src.dirs}" includes="**/*.java" />
+      <fileset dir="${java.src.dir}" includes="**/*.java" />
     </javadoc>
-    <groovydoc sourcepath="${groovy.src.dirs}" destdir="${groovydoc.dir}" private="${groovydoc.private}" />
+    <groovydoc sourcepath="${groovy.src.dir}" destdir="${groovydoc.dir}" private="${groovydoc.private}" />
   </target>
 
   <target name="dists" description="create a distributable file" depends="" />
+
+  <target name="-coverageReport">
+    <cobertura-report destdir="${reports.dir}/coverage" datafile="${instrument.classes.dir}/cobertura.ser">
+      <fileset dir="${java.src.dir}" includes="**/*.java" />
+    </cobertura-report>
+  </target>
+
+  <target name="projectReport" description="create all reports for the project (expected to be run after coverage)"
+    depends="-coverageReport" /> 
 </project>

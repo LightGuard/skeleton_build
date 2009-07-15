@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ivy-module version="1.0" xmlns:m="http://ant.apache.org/ivy/maven">
+	<info organisation="org.example" module="skeleton_build"/>
+  <configurations defaultconfmapping="runtime->default;sources->sources;compile->master;test->default">
+		<conf name="compile" transitive="false" />
+		<conf name="sources" transitive="false" visibility="private" />
+		<conf name="test" transitive="true" visibility="private" />
+		<conf name="runtime" transitive="true" />
+	</configurations>
+	<dependencies defaultconf="compile">
+		<!-- Add your JDBC driver dependency here if you need it -->
+
+		<!--
+		<dependency org="hsqldb" name="hsqldb" rev="1.8.0.8-brew" conf="compile,runtime"/>
+		-->
+		<dependency org="javax.persistence" name="persistence-api" rev="1.0" conf="compile"/>
+
+		<dependency org="javax.servlet" name="servlet-api" rev="2.5" conf="compile"/>
+		<!--<dependency org="org.drools" name="drools-api" rev="5.0.1" conf="runtime,compile,sources"/>-->
+		<!--<dependency org="org.drools" name="drools-compiler" rev="5.0.1" conf="runtime"/>-->
+		<!--<dependency org="org.drools" name="drools-core" rev="5.0.1" conf="runtime"/>-->
+		<!--<dependency org="org.drools" name="drools-decisiontables" rev="5.0.1" conf="runtime"/>-->
+
+		<dependency org="org.codehaus.groovy" name="groovy-all" rev="1.6.1" conf="runtime,compile,sources"/>
+		<dependency org="org.hibernate" name="hibernate-validator" rev="3.1.0.GA" conf="runtime,compile,sources"/>
+		<dependency org="org.jboss.el" name="jboss-el" rev="2.0.1.GA" conf="runtime,sources"/>
+		<!-- Seam jar is a special case because it's an EJB type and Ivy (at least right now)
+		believes the extension should be ejb, so we have to tell it the correct one. -->
+    <dependency org="org.jboss.seam" name="jboss-seam" rev="${seam.version}">
+      <artifact name="jboss-seam" type="ejb" ext="jar" conf="runtime;compile"/> 
+      <artifact name="jboss-seam" type="source" ext="jar" m:classifier="sources" conf="sources"/>
+		</dependency>
+		<dependency org="org.jboss.seam" name="jboss-seam-debug" rev="${seam.version}" conf="runtime"/>
+		<!--<dependency org="org.jboss.seam" name="jboss-seam-excel" rev="${seam.version}" conf="runtime,sources"/>-->
+		<!--<dependency org="org.jboss.seam" name="jboss-seam-ioc" rev="${seam.version}" conf="runtime,sources"/>-->
+		<!--<dependency org="org.jboss.seam" name="jboss-seam-jul" rev="${seam.version}" conf="runtime,sources"/>-->
+		<!--<dependency org="org.jboss.seam" name="jboss-seam-mail" rev="${seam.version}" conf="runtime,sources"/>-->
+		<!--<dependency org="org.jboss.seam" name="jboss-seam-pdf" rev="${seam.version}" conf="runtime,sources"/>-->
+		<!--<dependency org="org.jboss.seam" name="jboss-seam-remoting" rev="${seam.version}" conf="runtime,sources"/>--> 
+		<!--<dependency org="org.jboss.seam" name="jboss-seam-rss" rev="${seam.version}" conf="runtime,sources"/>-->
+		<dependency org="org.jboss.seam" name="jboss-seam-ui" rev="${seam.version}" conf="runtime,sources"/>
+
+		<dependency org="org.icefaces" name="icefaces" rev="${icefaces.version}" conf="runtime,compile"/>
+		<dependency org="org.icefaces" name="icefaces-comps" rev="${icefaces.version}" conf="runtime"/>
+		<dependency org="org.icefaces" name="icefaces-facelets" rev="${icefaces.version}" conf="runtime"/>
+
+		<dependency org="org.testng" name="testng" rev="5.9" conf="test"/>
+		<dependency org="net.sourceforge.cobertura" name="cobertura" rev="1.9.2" conf="test"/> 
+		<dependency org="org.jboss.seam.embedded" name="hibernate-all" rev="${jboss-embedded.version}" conf="test"/>
+		<dependency org="org.jboss.seam.embedded" name="thirdparty-all" rev="${jboss-embedded.version}" conf="test"/>
+
+		<dependency org="org.jboss.seam.embedded" name="jboss-embedded-all" rev="${jboss-embedded.version}" conf="test"/>
+		<dependency org="org.jboss.seam.embedded" name="jboss-embedded-api" rev="${jboss-embedded.version}" conf="test"/>
+
+    <exclude org="org.jboss.seam" ext="ejb" />
+    <exclude org="org.apache.ant" />
+    <exclude org="com.sun.facelets" />
+    <exclude org="logkit" module="logkit" />
+    <exclude org="avalon-framework" module="avalon-framework" />
+    <exclude org="log4j" />
+    <exclude org="xml-apis" module="xml-apis" />
+    <exclude org="junit" conf="runtime" />
+    <exclude org="javax.transaction" conf="runtime" />
+    <exclude org="javax.servlet" />
+    <exclude org="javax.el" />
+	</dependencies>
+</ivy-module>
+
