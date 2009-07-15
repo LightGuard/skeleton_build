@@ -161,6 +161,7 @@
   </target>
 
   <target name="compileTests" description="compile groovy / Java code" depends="compile">
+    <mkdir dir="${test.classes.dir}" />
     <groovyc srcdir="${test.src.dirs}" destdir="${test.classes.dir}">
       <classpath>
       </classpath>
