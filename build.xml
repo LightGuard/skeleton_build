@@ -2,7 +2,7 @@
 <project name="skeleton_build" default="compile" 
   xmlns:ivy="antlib:org.apache.ivy.ant">
   <description>
-    A basic, skeleton build file to be flushed out on a per project basis
+    A basic, skeleton build file for seam projects on JBoss
     Created by Jason Porter
   </description>
 
@@ -74,11 +74,23 @@
         dists
           desc: create a distributable file (jar, war, ear, etc)
           lifecycle dependencies: zip type tasks (jar, war, ear, etc) 
-          non-lifecycle dependencies: none 
+          non-lifecycle dependencies: -war 
         projectReport
           desc: create all reports for the project
           lifecycle dependencies: init
           non-lifecycle dependencies: -coverageReport,
+        deploy
+          desc: deploy the archive to a jboss instance
+          lifecycle dependencies: dists
+          non-lifecycle dependencies: none
+        undeploy
+          desc: undeploy the archive in jboss
+          lifecycle dependencies: none
+          non-lifecycle dependencies: none 
+        restart
+          desc: undeploy and redeploy the archive in jboss
+          lifecycle dependencies: undeploy,deploy
+          non-lifecycle dependencies: none 
   -->
 
   <!-- Conditionals needed pre-init --> 
@@ -120,6 +132,10 @@
       </fileset>
     </path>
 
+    <patternset id="hot.classes">
+      <!-- fill out any includes for this patternset to be hot deployed -->
+    </patternset>
+
     <condition property="libs.retrieved" value="true">
       <and>
         <available file="${lib.dir}/compile" />
@@ -141,11 +157,23 @@
 
   <target name="processResources" description="copy resources, performing any needed replacements / filters">
     <mkdir dir="${classes.dir}" /> 
+    <mkdir dir="${dist.dir}" /> 
     <copy todir="${classes.dir}">
       <filterchain>
         <expandproperties />
       </filterchain>
-      <fileset dir="${resource.dirs}" />
+      <fileset dir="${resource.dirs}">
+        <exclude name="**/*-ds.xml" /> <!-- Data set files need to be handled differentely -->
+      </fileset>
+    </copy>
+    <!-- Here is where we worry about Datasource files -->
+    <copy todir="${classes.dir}" flatten="true">
+      <filterchain>
+        <expandproperties />
+      </filterchain>
+      <fileset dir="${resource.dirs}">
+        <include name="**/*-ds.xml" />
+      </fileset>
     </copy>
   </target>
 
@@ -174,7 +202,7 @@
         <include name="**/*.jar" />
       </fileset>
     </path>
-    <path id="runtime.classpath">
+    <path id="runtime.path">
       <fileset dir="${lib.dir}/runtime">
         <include name="**/*.jar" />
       </fileset>
@@ -183,7 +211,7 @@
       <fileset dir="${lib.dir}/test">
         <include name="**/*.jar" />
       </fileset>
-      <path refid="runtime.classpath" />
+      <path refid="runtime.path" />
       <path refid="compile.classpath" />
     </path>
   </target>
@@ -279,7 +307,19 @@
     <groovydoc sourcepath="${groovy.src.dir}" destdir="${groovydoc.dir}" private="${groovydoc.private}" />
   </target>
 
-  <target name="dists" description="create a distributable file" depends="" />
+  <target name="-war" description="create a war file" depends="compile">
+    <war destfile="${dist.dir}/${ant.project.name}.war" webxml="${webapp.dir}/WEB-INF/web.xml" duplicate="fail">
+      <lib dir="${lib.dir}/runtime">
+        <include name="**/*.jar" />
+      </lib>
+      <classes dir="${classes.dir}" />
+      <fileset dir="${webapp.dir}">
+        <exclude name="**/web.xml" />
+      </fileset>
+    </war>
+  </target>
+
+  <target name="dists" description="create a distributable file" depends="-war" />
 
   <target name="-coverageReport">
     <cobertura-report destdir="${reports.dir}/coverage" datafile="${instrument.classes.dir}/cobertura.ser">
@@ -289,4 +329,20 @@
 
   <target name="projectReport" description="create all reports for the project (expected to be run after coverage)"
     depends="-coverageReport" /> 
+
+  <target name="deploy" description="deploy the archive to a jboss instance">
+    <copy todir="${jboss.location}/server/${jboss.server}/deploy" file="${dist.dir}/${ant.project.name}.war" />
+    <copy todir="${jboss.location}/server/${jboss.server}/deploy">
+      <fileset dir="${dist.dir}" includes="**/*-ds.xml" />
+    </copy>
+  </target>
+
+  <target name="undeploy" description="undeploy the archive in jboss">
+    <delete file="${jboss.location}/server/${jboss.server}/deploy/${ant.project.name}.war" />
+    <!-- Remove your datasource
+    <delete file="${jboss.location}/server/${jboss.server}/deploy/<your datasource name>-ds.xml" />
+    --> 
+  </target>
+
+  <target name="restart" description="undeploy and redeploy the archive in jboss" depends="undeploy, deploy" />
 </project>
