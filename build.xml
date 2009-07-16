@@ -164,15 +164,27 @@
       </filterchain>
       <fileset dir="${resource.dirs}">
         <exclude name="**/*-ds.xml" /> <!-- Data set files need to be handled differentely -->
+        <exclude name="**/application.xml" />
+        <exclude name="**/jboss-app.xml"/>
       </fileset>
     </copy>
     <!-- Here is where we worry about Datasource files -->
-    <copy todir="${classes.dir}" flatten="true">
+    <copy todir="${dist.dir}" flatten="true">
       <filterchain>
         <expandproperties />
       </filterchain>
       <fileset dir="${resource.dirs}">
         <include name="**/*-ds.xml" />
+      </fileset>
+    </copy>
+    <!-- You may want to handle some of the other files differently here as well like application.xml -->
+    <copy todir="${build.dir}/ear-resources" flatten="true">
+      <filterchain>
+        <expandproperties />
+      </filterchain>
+      <fileset dir="${resource.dirs}">
+        <include name="**/application.xml" />
+        <include name="**/jboss-app.xml"/>
       </fileset>
     </copy>
   </target>
@@ -307,19 +319,56 @@
     <groovydoc sourcepath="${groovy.src.dir}" destdir="${groovydoc.dir}" private="${groovydoc.private}" />
   </target>
 
-  <target name="-war" description="create a war file" depends="compile">
+  <target name="-jar" depends="compile">
+    <jar destfile="${dist.dir}/${ant.project.name}.jar">
+      <metainf dir="${classes.dir}/META-INF">
+        <include name="**/ejb-jar.xml" />
+        <include name="**/orm.xml" />
+        <include name="**/standard-jaxws-endpoint-config.xml" /> 
+        <include name="**/persistence.xml" /> 
+      </metainf>
+      <fileset dir="${classes.dir}">
+        <!-- Includes for the EJB Jar -->
+        <include name="**/ejb/**" />
+        <include name="**/entity/**" />
+      </fileset>
+    </jar>
+  </target>
+
+  <target name="-war" depends="-jar">
     <war destfile="${dist.dir}/${ant.project.name}.war" webxml="${webapp.dir}/WEB-INF/web.xml" duplicate="fail">
       <lib dir="${lib.dir}/runtime">
-        <include name="**/*.jar" />
+        <include name="**/commons-beanutils.jar" />
+        <include name="**/jboss-seam-*.jar" />
       </lib>
-      <classes dir="${classes.dir}" />
+      <classes dir="${classes.dir}">
+        <!-- exclude clasess that need to be jarred and placed in the ear -->
+        <exclude name="**/ejb/**" />
+      </classes>
       <fileset dir="${webapp.dir}">
         <exclude name="**/web.xml" />
       </fileset>
     </war>
   </target>
 
-  <target name="dists" description="create a distributable file" depends="-war" />
+  <target name="-ear" depends="-war">
+    <ear destfile="${dist.dir}/${ant.project.name}.ear" appxml="${build.dir}/ear-resources/application.xml">
+      <fileset dir="${lib.dir}/runtime">
+        <!-- Include jars that need to go into the ear (or exclude jars from the war) -->
+        <exclude name="**/commons-beanutils.jar" />
+        <exclude name="**/jboss-seam-*.jar" /> 
+      </fileset>
+      <fileset dir="${dist.dir}">
+        <include name="**/*.jar" />
+        <include name="**/*.war" />
+      </fileset>
+      <fileset dir="${build.dir}/ear-resources">
+        <include name="**/jboss-app.xml"/> 
+      </fileset>
+    </ear>
+  </target>
+
+  <target name="dists" description="create a distributable file" depends="-ear" />
 
   <target name="-coverageReport">
     <cobertura-report destdir="${reports.dir}/coverage" datafile="${instrument.classes.dir}/cobertura.ser">
@@ -331,14 +380,14 @@
     depends="-coverageReport" /> 
 
   <target name="deploy" description="deploy the archive to a jboss instance">
-    <copy todir="${jboss.location}/server/${jboss.server}/deploy" file="${dist.dir}/${ant.project.name}.war" />
+    <copy todir="${jboss.location}/server/${jboss.server}/deploy" file="${dist.dir}/${ant.project.name}.ear" />
     <copy todir="${jboss.location}/server/${jboss.server}/deploy">
       <fileset dir="${dist.dir}" includes="**/*-ds.xml" />
     </copy>
   </target>
 
   <target name="undeploy" description="undeploy the archive in jboss">
-    <delete file="${jboss.location}/server/${jboss.server}/deploy/${ant.project.name}.war" />
+    <delete file="${jboss.location}/server/${jboss.server}/deploy/${ant.project.name}.ear" />
     <!-- Remove your datasource
     <delete file="${jboss.location}/server/${jboss.server}/deploy/<your datasource name>-ds.xml" />
     --> 
