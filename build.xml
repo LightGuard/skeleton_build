@@ -55,7 +55,7 @@
           desc: compile groovy / Java test code
           lifecycle dependencies: compile
           non-lifecycle dependencies: none
-        test
+        runTests
           desc: run tests
           lifecycle dependencies: compileTests, processTestResources
           non-lifecycle dependencies: none
@@ -203,7 +203,7 @@
     </copy>
   </target>
 
-  <target name="compileTests" description="compile groovy / Java code" depends="compile">
+  <target name="compileTests" description="compile groovy / Java code" depends="compile, processTestResources">
     <mkdir dir="${test.classes.dir}" />
     <taskdef resource="testngtasks" classpathref="test.classpath" />
 
@@ -221,30 +221,20 @@
     </copy>
   </target>
 
-  <target name="test" description="run tests" depends="compileTests, processTestResources"> 
-    <groovy>
-      ant.sequential {
-        testng(suitename: properties['ant.project.name'], outputdir: properties['test.output.dir'],  haltonfailure: true) {
-          // Maybe use the XML file, not sure yet
-          classfileset dir: properties['test.classes.dir'], includes: '**/*.class'
-          if (properties['running.coverage']) 
-            sysproperty key: 'net.sourceforge.cobertura.datafile', file: properties['instrument.classes.dir'] + '/cobertura.ser'
-
-          classpath { 
-            if (properties['running.coverage'])
-              pathelement location: properties["instrument.classes.dir"]
-
-            path refid: 'test.classpath'
-            pathelement location: properties['test.classes.dir']
-            pathelement location: properties['webapp.dir'] + '/WEB-INF'
-            pathelement location: properties['webapp.dir'] + '/WEB-INF/classes'
-
-            pathelement location: properties["classes.dir"] 
-          } 
-        }
-      }
-    </groovy> 
-  </target>
+  <macrodef name="test"> 
+    <attribute name="groups" />
+    <attribute name="suite.name" default="${ant.project.name}-Test-Suite" />
+    <attribute name="output.dir" default="${test.output.dir}" />
+    <element name="testclasspath" description="classpath for testng to use" />
+    <element name="systemproperty" description="system properties to run with testng" optional="true" />
+    <sequential>
+      <testng suitename="@{suite.name}" outputdir="@{output.dir}" groups="@{groups}" haltonfailure="true">
+        <classfileset dir="${test.classes.dir}" includes="**/*.class" />
+        <systemproperty />
+        <testclasspath />
+      </testng>
+    </sequential>
+  </macrodef>
 
   <target name="-instrument" depends="compile">
     <mkdir dir="${instrument.classes.dir}" />
@@ -263,12 +253,42 @@
 
     <!-- I think we need to delete the other one so Seam doesn't pick them up too -->
     <delete file="${classes.dir}/seam.properties" /> 
-
-    <property name="running.coverage" value="true" /> 
   </target>
 
-  <target name="test-coverage" description="Runs tests, then provides coverage" depends="-instrument, test">
-    <property name="coverage.run" value="true" />
+  <target name="runTests" description="Runs tests" depends="compileTests">
+    <test groups="">
+      <testclasspath>
+        <classpath>
+          <pathelement location="${instrument.classes.dir}" />
+          <path refid="test.classpath" />
+          <pathelement location="${test.classes.dir}" />
+          <pathelement location="${webapp.dir}/WEB-INF" />
+          <pathelement location="${'webapp.dir}/WEB-INF/classes" />
+          <pathelement location="${classes.dir}" />
+        </classpath>
+      </testclasspath>
+      <systemproperty>
+        <sysproperty key="net.sourceforge.cobertura.datafile" value="${instrument.classes.dir}/cobertura.ser" />
+      </systemproperty>
+    </test>
+  </target>
+
+  <target name="testCoverage" description="Runs tests, then provides coverage" depends="-instrument, compileTests">
+    <test groups="">
+      <testclasspath>
+        <classpath>
+          <pathelement location="${instrument.classes.dir}" />
+          <path refid="test.classpath" />
+          <pathelement location="${test.classes.dir}" />
+          <pathelement location="${webapp.dir}/WEB-INF" />
+          <pathelement location="${'webapp.dir}/WEB-INF/classes" />
+          <pathelement location="${classes.dir}" />
+        </classpath>
+      </testclasspath>
+      <systemproperty>
+        <sysproperty key="net.sourceforge.cobertura.datafile" value="${instrument.classes.dir}/cobertura.ser" />
+      </systemproperty>
+    </test>
   </target>
 
   <target name="javadoc" description="generate Javadoc for the project" depends="init"> 
