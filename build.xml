@@ -287,7 +287,6 @@
     <test groups="">
       <testclasspath>
         <classpath>
-          <pathelement location="${instrument.classes.dir}" />
           <path refid="test.classpath" />
           <pathelement location="${test.classes.dir}" />
           <pathelement location="${webapp.dir}/WEB-INF" />
@@ -295,9 +294,6 @@
           <pathelement location="${classes.dir}" />
         </classpath>
       </testclasspath>
-      <systemproperty>
-        <sysproperty key="net.sourceforge.cobertura.datafile" value="${instrument.classes.dir}/cobertura.ser" />
-      </systemproperty>
     </test>
   </target>
 
