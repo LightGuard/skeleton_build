@@ -295,7 +295,9 @@
     <property name="running.coverage" value="true" /> 
   </target>
 
-  <target name="test-coverage" description="Runs tests, then provides coverage" depends="-instrument, test" />
+  <target name="test-coverage" description="Runs tests, then provides coverage" depends="-instrument, test">
+    <property name="coverage.run" value="true" />
+  </target>
 
   <target name="javadoc" description="generate Javadoc for the project" depends="init"> 
     <mkdir dir="${javadoc.dir}" />
@@ -321,7 +323,7 @@
 
   <target name="dists" description="create a distributable file" depends="-war" />
 
-  <target name="-coverageReport">
+  <target name="-coverageReport" if="coverage.run">
     <cobertura-report destdir="${reports.dir}/coverage" datafile="${instrument.classes.dir}/cobertura.ser">
       <fileset dir="${java.src.dir}" includes="**/*.java" />
     </cobertura-report>
