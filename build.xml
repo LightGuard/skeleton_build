@@ -371,18 +371,18 @@
 
   <target name="-ear" depends="-war">
     <ear destfile="${dist.dir}/${ant.project.name}.ear" appxml="${build.dir}/ear-resources/application.xml">
-      <fileset dir="${lib.dir}/runtime">
+      <zipfileset dir="${lib.dir}/runtime" prefix="lib">
         <!-- Include jars that need to go into the ear (or exclude jars from the war) -->
         <exclude name="**/commons-beanutils.jar" />
         <exclude name="**/jboss-seam-*.jar" /> 
-      </fileset>
+      </zipfileset>
       <fileset dir="${dist.dir}">
         <include name="**/*.jar" />
         <include name="**/*.war" />
       </fileset>
-      <fileset dir="${build.dir}/ear-resources">
+      <zipfileset dir="${build.dir}/ear-resources" prefix="META-INF">
         <include name="**/jboss-app.xml"/> 
-      </fileset>
+      </zipfileset>
     </ear>
   </target>
 
