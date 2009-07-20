@@ -132,7 +132,7 @@
     <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant" classpathref="build.lib.classpath"/>
     <taskdef name="groovy" classname="org.codehaus.groovy.ant.Groovy" classpathref="build.lib.classpath"/>
     <taskdef name="groovyc" classname="org.codehaus.groovy.ant.Groovyc" classpathref="build.lib.classpath"/>
-    <taskdef name="groovydoc" classname="org.codehaus.groovy.ant.Groovydoc" classpathref="build.lib.classpath"/>
+    <taskdef name="groovydoc" classname="org.codehaus.groovy.ant.Groovydoc" classpathref="build.lib.classpath"/> 
   </target> 
 
   <target name="clean" description="clean-up from a previous build">
@@ -166,6 +166,8 @@
     <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact]-[revision].[ext]" conf="runtime"/> 
     <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact]-[revision]-[type]s.[ext]" conf="sources"/> 
     <ivy:retrieve pattern="${lib.dir}/[conf]/[artifact]-[revision].[ext]" conf="test"/> 
+
+    <property name="ivy.loaded" value="true" />
   </target>
 
   <target name="libs" description="fetch all needed libraries using Ivy" depends="init, -retrieveLibs">
@@ -300,11 +302,17 @@
   <target name="dists" description="create a distributable file" depends="" />
 
   <target name="-coverageReport" if="coverage.run">
+    <mkdir dir="${reports.dir}" />
     <cobertura-report destdir="${reports.dir}/coverage" datafile="${instrument.classes.dir}/cobertura.ser">
       <fileset dir="${java.src.dir}" includes="**/*.java" />
     </cobertura-report>
   </target>
 
+  <target name="-dependencyReport" if="ivy.loaded">
+    <mkdir dir="${reports.dir}" />
+    <ivy:report conf="${ivy.resolved.configurations}" todir="${reports.dir}/dependency" graph="true" dot="true" />
+  </target>
+
   <target name="projectReport" description="create all reports for the project (expected to be run after coverage)"
-    depends="-coverageReport" /> 
+    depends="-coverageReport, -dependencyReport" /> 
 </project>
