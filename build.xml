@@ -2,7 +2,7 @@
 <project name="skeleton_build" default="compile" 
   xmlns:ivy="antlib:org.apache.ivy.ant">
   <description>
-    A basic, skeleton build file to be flushed out on a per project basis
+    A basic, skeleton build file to be fleshed out on a per project basis
     Created by Jason Porter
   </description>
 
